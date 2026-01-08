@@ -1,173 +1,219 @@
 // js/projetos.js
-const elProj = {
-  tbody: document.getElementById("projetos-tbody"),
-  mes: document.getElementById("projetos-mes"),
-  btnRefresh: document.getElementById("btn-projetos-refresh"),
-  btnOpen: document.getElementById("btn-open-projeto"),
+(function(){
+  const { db } = window.fb;
+  const { badge, escapeHtml } = window.utils;
 
-  modal: document.getElementById("modal-projeto"),
-  title: document.getElementById("projeto-modal-title"),
-  msg: document.getElementById("projeto-msg"),
-  btnClose: document.getElementById("btn-close-projeto"),
-  btnSave: document.getElementById("btn-save-projeto"),
-  btnDel: document.getElementById("btn-del-projeto"),
+  const tbody = document.getElementById("projetos-tbody");
+  const btnNew = document.getElementById("btn-novo-projeto");
+  const monthEl = document.getElementById("mes-projetos");
+  const btnRefresh = document.getElementById("btn-projetos-refresh");
 
-  cliente: document.getElementById("projeto-cliente"),
-  status: document.getElementById("projeto-status"),
-  titulo: document.getElementById("projeto-titulo"),
-  tipo: document.getElementById("projeto-tipo"),
-  data: document.getElementById("projeto-data"),
-  local: document.getElementById("projeto-local"),
-  valor: document.getElementById("projeto-valor"),
-  obs: document.getElementById("projeto-obs"),
-};
+  const modal = document.getElementById("modal-projeto");
+  const mTitle = document.getElementById("modal-proj-title");
+  const msgEl = document.getElementById("modal-proj-msg");
 
-let editingProjetoId = null;
+  const fId = document.getElementById("proj-id");
+  const fData = document.getElementById("proj-data");
+  const fTitulo = document.getElementById("proj-titulo");
+  const fTipo = document.getElementById("proj-tipo");
+  const fStatus = document.getElementById("proj-status");
+  const fCliente = document.getElementById("proj-cliente");
+  const fValor = document.getElementById("proj-valor");
+  const fObs = document.getElementById("proj-obs");
 
-async function projetosOpenModal(projeto){
-  elProj.modal.classList.remove("hidden");
-  elProj.msg.textContent = "";
+  const btnSave = document.getElementById("proj-save");
+  const btnCancel = document.getElementById("proj-cancel");
 
-  await fillClientesSelect(elProj.cliente);
-
-  if(projeto){
-    editingProjetoId = projeto.id;
-    elProj.title.textContent = "Editar projeto";
-    elProj.btnDel.classList.remove("hidden");
-
-    const d = projeto.data;
-    elProj.cliente.value = d.clienteId || "";
-    elProj.status.value = d.status || "agendado";
-    elProj.titulo.value = d.titulo || "";
-    elProj.tipo.value = d.tipo || "outro";
-    elProj.data.value = utils.isoToBR(d.dataEventoISO || "");
-    elProj.local.value = d.local || "";
-    elProj.valor.value = (d.valorFechado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    elProj.obs.value = d.observacoes || "";
-  }else{
-    editingProjetoId = null;
-    elProj.title.textContent = "Novo projeto";
-    elProj.btnDel.classList.add("hidden");
-
-    elProj.status.value = "agendado";
-    elProj.titulo.value = "";
-    elProj.tipo.value = "aniversario";
-    elProj.data.value = "";
-    elProj.local.value = "";
-    elProj.valor.value = "";
-    elProj.obs.value = "";
+  function showMsg(text){
+    msgEl.textContent = text || "";
+    msgEl.style.display = text ? "block" : "none";
   }
-}
 
-function projetosCloseModal(){ elProj.modal.classList.add("hidden"); }
-function setProjMsg(t){ elProj.msg.textContent = t || ""; }
-
-async function projetosSave(){
-  setProjMsg("");
-  const titulo = elProj.titulo.value.trim();
-  const clienteId = elProj.cliente.value;
-  if(!clienteId) return setProjMsg("Selecione um cliente.");
-  if(!titulo) return setProjMsg("Informe um título.");
-
-  const dataISO = utils.brToISO(elProj.data.value.trim());
-  if(elProj.data.value.trim() && !dataISO){
-    return setProjMsg("Data do evento inválida. Use dd/mm/aaaa.");
+  function getEmpresaCtx(){
+    const empresaId = window.state?.empresaId;
+    const uid = window.state?.uid;
+    if(!empresaId || !uid) throw new Error("Sem contexto de empresa/usuário.");
+    return { empresaId, uid };
   }
-  if(!dataISO) return setProjMsg("Informe a data do evento.");
 
-  const valor = utils.parseBRL(elProj.valor.value);
+  function colRef(empresaId){
+    return db.collection("empresas").doc(empresaId).collection("projetos");
+  }
 
-  const data = {
-    clienteId,
-    titulo,
-    tipo: elProj.tipo.value,
-    status: elProj.status.value,
-    dataEventoISO: dataISO,
-    local: elProj.local.value.trim(),
-    valorFechado: valor,
-    observacoes: elProj.obs.value.trim(),
-    updatedAt: fb.serverTimestamp(),
-  };
+  function openModal(edit=false){
+    modal.classList.add("open");
+    showMsg("");
+    if(!edit){
+      mTitle.textContent = "Novo projeto";
+      fId.value = "";
+      fData.value = "";
+      fTitulo.value = "";
+      fTipo.value = "";
+      fStatus.value = "";
+      fCliente.value = "";
+      fValor.value = "";
+      fObs.value = "";
+    }
+  }
 
-  const col = fb.db.collection("empresas").doc(state.empresaId).collection("projetos");
-  try{
-    if(editingProjetoId){
-      await col.doc(editingProjetoId).update(data);
-    }else{
-      await col.add({ ...data, createdAt: fb.serverTimestamp() });
+  function closeModal(){
+    modal.classList.remove("open");
+  }
+
+  async function loadProjectsForMonth(monthKey){
+    const { empresaId } = getEmpresaCtx();
+
+    const normalized = window.utils.normalizeMonthKey(monthKey);
+    if(!normalized){
+      tbody.innerHTML = `<tr><td colspan="7">Mês inválido. Use mm/aaaa (ex: 01/2026).</td></tr>`;
+      return;
+    }
+    monthEl.value = normalized;
+
+    const range = window.utils.monthKeyToRange(normalized);
+    if(!range){
+      tbody.innerHTML = `<tr><td colspan="7">Mês inválido.</td></tr>`;
+      return;
     }
 
-    projetosCloseModal();
-    await projetosRefresh();
-    await refreshSelectorsClientsAndProjects();
-  }catch(err){
-    setProjMsg(err?.message || "Erro ao salvar.");
-  }
-}
+    const { startISO, endISOExclusive } = range;
 
-async function projetosDelete(){
-  if(!editingProjetoId) return;
-  if(!confirm("Excluir este projeto?")) return;
-  const col = fb.db.collection("empresas").doc(state.empresaId).collection("projetos");
-  await col.doc(editingProjetoId).delete();
-  projetosCloseModal();
-  await projetosRefresh();
-  await refreshSelectorsClientsAndProjects();
-}
+    const snap = await colRef(empresaId)
+      .where("dataISO", ">=", startISO)
+      .where("dataISO", "<", endISOExclusive)
+      .orderBy("dataISO", "asc")
+      .get();
 
-async function projetosRefresh(){
-  const monthKey = elProj.mes.value.trim() || defaultMonthKey();
-  elProj.mes.value = monthKey;
-  const range = utils.monthKeyToRange(monthKey);
-  if(!range) return;
+    if(snap.empty){
+      tbody.innerHTML = `<tr><td colspan="7">Nenhum projeto neste mês.</td></tr>`;
+      return;
+    }
 
-  const col = fb.db.collection("empresas").doc(state.empresaId).collection("projetos");
-  const snap = await col
-    .where("dataEventoISO", ">=", range.startISO)
-    .where("dataEventoISO", "<", range.endISOExclusive)
-    .orderBy("dataEventoISO")
-    .get();
-
-  const clientMap = await getClientMap();
-
-  elProj.tbody.innerHTML = "";
-  snap.forEach(doc=>{
-    const d = doc.data();
-    const clienteNome = clientMap[d.clienteId] || "—";
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${utils.isoToBR(d.dataEventoISO)}</td>
-      <td>${utils.escapeHtml(d.titulo)}</td>
-      <td>${utils.escapeHtml(d.tipo)}</td>
-      <td>${utils.escapeHtml(d.status)}</td>
-      <td>${utils.escapeHtml(clienteNome)}</td>
-      <td>${utils.formatBRL(d.valorFechado || 0)}</td>
-      <td><span class="link" data-action="edit" data-id="${doc.id}">Editar</span></td>
-    `;
-    elProj.tbody.appendChild(tr);
-  });
-
-  if(snap.empty){
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="7" class="muted">Nenhum projeto neste mês.</td>`;
-    elProj.tbody.appendChild(tr);
-  }
-
-  elProj.tbody.querySelectorAll("[data-action='edit']").forEach(el=>{
-    el.addEventListener("click", async ()=>{
-      const id = el.dataset.id;
-      const doc = await col.doc(id).get();
-      projetosOpenModal({ id, data: doc.data() });
+    let html = "";
+    snap.forEach(doc=>{
+      const p = doc.data();
+      const dataBR = window.utils.isoToBR(p.dataISO) || (p.dataBR || "");
+      const valor = window.utils.formatBRL(p.valor || 0);
+      html += `
+        <tr>
+          <td>${escapeHtml(dataBR)}</td>
+          <td>${escapeHtml(p.titulo || "")}</td>
+          <td>${escapeHtml(p.tipo || "")}</td>
+          <td>${badge(escapeHtml(p.status || ""), "info")}</td>
+          <td>${escapeHtml(p.cliente || "")}</td>
+          <td style="text-align:right">${valor}</td>
+          <td class="actions">
+            <button class="btn small" data-act="edit" data-id="${doc.id}">Editar</button>
+            <button class="btn small danger" data-act="del" data-id="${doc.id}">Excluir</button>
+          </td>
+        </tr>`;
     });
+
+    tbody.innerHTML = html;
+  }
+
+  async function openEdit(id){
+    const { empresaId } = getEmpresaCtx();
+    showMsg("");
+
+    const doc = await colRef(empresaId).doc(id).get();
+    if(!doc.exists){
+      showMsg("Projeto não encontrado.");
+      return;
+    }
+    const p = doc.data();
+    mTitle.textContent = "Editar projeto";
+    fId.value = doc.id;
+    fData.value = window.utils.isoToBR(p.dataISO) || (p.dataBR || "");
+    fTitulo.value = p.titulo || "";
+    fTipo.value = p.tipo || "";
+    fStatus.value = p.status || "";
+    fCliente.value = p.cliente || "";
+    fValor.value = (p.valor != null) ? String(p.valor).replace(".", ",") : "";
+    fObs.value = p.obs || "";
+    modal.classList.add("open");
+  }
+
+  async function saveProject(){
+    const { empresaId, uid } = getEmpresaCtx();
+
+    const id = (fId.value || "").trim();
+    const dataBR = (fData.value || "").trim();
+    const dataISO = window.utils.brToISO(dataBR);
+
+    const titulo = (fTitulo.value || "").trim();
+    const tipo = (fTipo.value || "").trim();
+    const status = (fStatus.value || "").trim();
+    const cliente = (fCliente.value || "").trim();
+    const valor = window.utils.parseBRL(fValor.value || "");
+    const obs = (fObs.value || "").trim();
+
+    if(!titulo || !tipo || !status || !dataBR){
+      showMsg("Preencha Data, Título, Tipo e Status.");
+      return;
+    }
+    if(!dataISO){
+      showMsg("Data inválida. Use dd/mm/aaaa (ex: 07/01/2026).");
+      return;
+    }
+
+    const payload = {
+      dataBR,
+      dataISO,
+      titulo,
+      tipo,
+      status,
+      cliente,
+      valor,
+      obs,
+      updatedAt: window.fb.serverTimestamp(),
+      updatedBy: uid,
+    };
+
+    try{
+      if(id){
+        await colRef(empresaId).doc(id).update(payload);
+      }else{
+        await colRef(empresaId).add({
+          ...payload,
+          createdAt: window.fb.serverTimestamp(),
+          createdBy: uid,
+        });
+      }
+      closeModal();
+      await loadProjectsForMonth(monthEl.value);
+    }catch(err){
+      console.error(err);
+      showMsg(err?.message || "Erro ao salvar.");
+    }
+  }
+
+  async function deleteProject(id){
+    const { empresaId } = getEmpresaCtx();
+    if(!confirm("Excluir este projeto?")) return;
+    await colRef(empresaId).doc(id).delete();
+    await loadProjectsForMonth(monthEl.value);
+  }
+
+  // listeners
+  btnNew?.addEventListener("click", ()=> openModal(false));
+  btnCancel?.addEventListener("click", closeModal);
+  btnSave?.addEventListener("click", saveProject);
+
+  btnRefresh?.addEventListener("click", ()=> loadProjectsForMonth(monthEl.value));
+
+  tbody?.addEventListener("click", async (e)=>{
+    const btn = e.target.closest("button[data-act]");
+    if(!btn) return;
+    const act = btn.dataset.act;
+    const id = btn.dataset.id;
+    if(act === "edit") await openEdit(id);
+    if(act === "del") await deleteProject(id);
   });
-}
 
-// Eventos
-elProj.btnOpen.addEventListener("click", ()=> projetosOpenModal(null));
-elProj.btnClose.addEventListener("click", projetosCloseModal);
-elProj.btnSave.addEventListener("click", projetosSave);
-elProj.btnDel.addEventListener("click", projetosDelete);
-elProj.btnRefresh.addEventListener("click", projetosRefresh);
-
-window.projetosRefresh = projetosRefresh;
-window.projetosOpenModal = projetosOpenModal;
+  // init
+  window.addEventListener("app:ready", ()=>{
+    if(!monthEl.value) monthEl.value = window.utils.normalizeMonthKey(`${window.utils.pad2(new Date().getMonth()+1)}/${new Date().getFullYear()}`);
+    loadProjectsForMonth(monthEl.value);
+  });
+})();
