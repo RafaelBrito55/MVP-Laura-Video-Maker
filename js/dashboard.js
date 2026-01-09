@@ -1,103 +1,57 @@
 // js/dashboard.js
 
 /**
- * DASHBOARD: o filtro de "mês" aqui é uma DATA dentro do mês, no formato dd/mm/aa.
- * Ex.: 15/01/26 (qualquer dia do mês serve).
- * Internamente convertimos para monthKey "MM/AAAA" para filtrar no Firestore.
+ * DASHBOARD
+ * - O filtro aqui é uma DATA de referência (dd/mm/aaaa) escolhida pelo usuário.
+ * - Internamente usamos o MÊS dessa data (monthKey "MM/AAAA") para filtrar no Firestore.
+ *
+ * Requisitos implementados:
+ * 1) Campo com calendário (input type="date").
+ * 2) Ao clicar em "Atualizar", a data permanece (não volta para 01).
+ * 3) Ao iniciar o sistema, começa na data de hoje (feito no app.js).
  */
 
-function isoToBRShort(iso){
-  // YYYY-MM-DD -> dd/mm/aa
-  if(!iso) return "";
-  const m = String(iso).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+function isoToMonthKey(iso){
+  // "YYYY-MM-DD" -> "MM/AAAA"
+  const m = String(iso || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(!m) return "";
-  const yyyy = Number(m[1]);
-  const mm = Number(m[2]);
-  const dd = Number(m[3]);
-  if(!Number.isFinite(yyyy) || !Number.isFinite(mm) || !Number.isFinite(dd)) return "";
-  const d = new Date(yyyy, mm - 1, dd);
-  if(d.getFullYear() !== yyyy || d.getMonth() !== (mm - 1) || d.getDate() !== dd) return "";
-  const yy = String(yyyy).slice(-2);
-  return `${utils.pad2(dd)}/${utils.pad2(mm)}/${yy}`;
+  const yyyy = m[1];
+  const mm = m[2];
+  return `${mm}/${yyyy}`;
 }
 
-function monthKeyToDashInput(monthKey){
-  // "MM/AAAA" -> "01/MM/AA"
-  const m = String(monthKey || "").trim().match(/^(\d{1,2})\/(\d{4})$/);
-  if(!m) return "";
-  const mm = utils.pad2(Number(m[1]));
-  const yy = String(m[2]).slice(-2);
-  return `01/${mm}/${yy}`;
-}
-
-function dashInputToMonthKey(input){
-  // Aceita:
-  // - dd/mm/aa (padrão)
-  // - dd/mm/aaaa (se colar)
-  // - MM/AAAA (legado)
-  const s = String(input || "").trim();
-  if(!s) return "";
-
-  // legado: MM/AAAA
-  if(/^\d{1,2}\/\d{4}$/.test(s)) return utils.normalizeMonthKey(s);
-
-  // BR date: dd/mm/aa ou dd/mm/aaaa
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
-  if(!m) return "";
-  const dd = Number(m[1]);
-  const mm = Number(m[2]);
-  const yearRaw = m[3];
-  const yyyy = yearRaw.length === 2 ? (2000 + Number(yearRaw)) : Number(yearRaw);
-  if(!Number.isFinite(dd) || !Number.isFinite(mm) || !Number.isFinite(yyyy)) return "";
-
-  // valida de verdade
-  const d = new Date(yyyy, mm - 1, dd);
-  if(d.getFullYear() !== yyyy || d.getMonth() !== (mm - 1) || d.getDate() !== dd) return "";
-  return `${utils.pad2(mm)}/${yyyy}`;
-}
-
-function defaultDashDateInput(){
-  // primeiro dia do mês atual, em dd/mm/aa
-  return monthKeyToDashInput(defaultMonthKey());
-}
-
-function bindDashDateMask(){
+function getDashSelectedISO(){
+  // dash-mes é type="date" (valor interno YYYY-MM-DD)
   const el = document.getElementById("dash-mes");
-  if(!el || el.dataset.maskBound === "1") return;
-  el.dataset.maskBound = "1";
+  if(!el) return "";
 
-  el.addEventListener("input", ()=>{
-    let digits = el.value.replace(/\D/g, "");
+  const raw = String(el.value || "").trim();
+  if(!raw){
+    const today = utils.todayISO();
+    el.value = today;
+    return today;
+  }
 
-    // se colar ddmmyyyy, converte pra ddmmyy
-    if(digits.length >= 8){
-      digits = digits.slice(0, 4) + digits.slice(6, 8);
-    } else {
-      digits = digits.slice(0, 6);
-    }
+  // aceita YYYY-MM-DD e também dd/mm/aaaa (caso o browser permita digitar assim)
+  const iso = utils.brToISO(raw);
+  if(!iso) return "";
 
-    if(digits.length <= 2){
-      el.value = digits;
-      return;
-    }
-    if(digits.length <= 4){
-      el.value = `${digits.slice(0,2)}/${digits.slice(2)}`;
-      return;
-    }
-    el.value = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4,6)}`;
-  });
+  // normaliza e garante que o input fique fixo no valor selecionado
+  if(el.value !== iso) el.value = iso;
+  return iso;
 }
 
 async function dashboardRefresh(){
-  bindDashDateMask();
+  const isoSelected = getDashSelectedISO();
+  if(!isoSelected){
+    alert("Data inválida. Use dd/mm/aaaa (ex: 31/01/2026).\n\nDica: você pode selecionar no calendário.");
+    return;
+  }
 
-  const raw = document.getElementById("dash-mes").value.trim();
-  const monthKey = dashInputToMonthKey(raw) || defaultMonthKey();
-  document.getElementById("dash-mes").value = monthKeyToDashInput(monthKey) || defaultDashDateInput();
-
+  const monthKey = isoToMonthKey(isoSelected) || defaultMonthKey();
   const range = utils.monthKeyToRange(monthKey);
   if(!range){
-    alert("Data/mês inválido. Use dd/mm/aa (ex: 15/01/26) ou MM/AAAA (ex: 01/2026).\n\nDica: qualquer dia do mês serve.");
+    alert("Mês inválido.");
     return;
   }
 
@@ -148,12 +102,12 @@ async function dashboardRefresh(){
       if(d.tipo==="despesa" && d.status==="pago") despPrev += v;
     });
 
-    const comp = (cur, prev)=> {
-      if(prev === 0 && cur === 0) return "0%";
-      if(prev === 0 && cur !== 0) return "+∞";
-      const pct = ((cur - prev)/prev)*100;
+    const comp = (cur, prevVal)=> {
+      if(prevVal === 0 && cur === 0) return `0% vs ${prev}`;
+      if(prevVal === 0 && cur !== 0) return `+∞ vs ${prev}`;
+      const pct = ((cur - prevVal)/prevVal)*100;
       const sign = pct >= 0 ? "+" : "";
-      return `${sign}${pct.toFixed(1)}% vs ${monthKeyToDashInput(prevMonthKey(monthKey))}`;
+      return `${sign}${pct.toFixed(1)}% vs ${prev}`;
     };
 
     document.getElementById("kpi-fat-comp").textContent = comp(fatPago, fatPrev);
@@ -204,7 +158,7 @@ async function dashboardLoadUpcomingProjects(){
     const clienteNome = clientMap[p.clienteId] || "—";
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${isoToBRShort(p.dataISO)}</td>
+      <td>${utils.isoToBR(p.dataISO)}</td>
       <td>${utils.escapeHtml(p.titulo)}</td>
       <td>${utils.escapeHtml(p.status || "")}</td>
       <td>${utils.escapeHtml(clienteNome)}</td>
@@ -255,7 +209,7 @@ async function dashboardLoadHighlights(){
       div.innerHTML = `
         <div class="row spread">
           <div><b>${utils.escapeHtml(n.titulo)}</b></div>
-          <div>${utils.badge(isoToBRShort(n.dueDateISO), pri)}</div>
+          <div>${utils.badge(utils.isoToBR(n.dueDateISO), pri)}</div>
         </div>
         <div class="muted small" style="margin-top:6px">${utils.escapeHtml(n.descricao || "")}</div>
         <div class="row gap" style="margin-top:10px">
@@ -290,4 +244,3 @@ async function setNotifDone(id){
 
 window.dashboardRefresh = dashboardRefresh;
 window.defaultMonthKey = defaultMonthKey;
-window.defaultDashDateInput = defaultDashDateInput;
