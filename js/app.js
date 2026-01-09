@@ -9,7 +9,7 @@ const views = {
 
 
 function defaultMonthDateShort(){
-  // primeiro dia do mês atual em dd/mm/aa (ex: 01/01/26)
+  // legado (usado em Projetos): primeiro dia do mês atual em dd/mm/aa (ex: 01/01/26)
   const d = new Date();
   const mm = String(d.getMonth()+1).padStart(2, "0");
   const yy = String(d.getFullYear()).slice(-2);
@@ -42,11 +42,9 @@ document.querySelectorAll(".nav-item").forEach(btn=>{
 
 async function appInitAfterLogin(){
   // Defaults
-  // Dashboard usa DATA dentro do mês (dd/mm/aa)
-  const dashDefault = (typeof window.defaultDashDateInput === "function")
-    ? window.defaultDashDateInput()
-    : "";
-  document.getElementById("dash-mes").value = dashDefault || "01/" + defaultMonthKey().slice(0,2) + "/" + String(defaultMonthKey().slice(-4)).slice(-2);
+  // Dashboard: inicia SEMPRE na data de hoje
+  // (campo é type="date", valor interno yyyy-mm-dd)
+  document.getElementById("dash-mes").value = utils.todayISO();
   document.getElementById("projetos-mes").value = defaultMonthDateShort();
   document.getElementById("fin-mes").value = defaultMonthKey();
 
