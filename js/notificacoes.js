@@ -142,6 +142,7 @@ async function notificacoesRefresh(){
       <div class="row gap" style="margin-top:12px">
         ${n.status === "aberta" ? `<button class="btn" data-action="done" data-id="${doc.id}">Concluir</button>` : ""}
         <button class="btn" data-action="edit" data-id="${doc.id}">Editar</button>
+        <button class="btn danger" data-action="del" data-id="${doc.id}">Excluir</button>
       </div>
     `;
 
@@ -162,6 +163,17 @@ async function notificacoesRefresh(){
       const id = btn.dataset.id;
       const doc = await fb.db.collection("empresas").doc(state.empresaId).collection("notificacoes").doc(id).get();
       notifOpenModal({ id, data: doc.data() });
+    });
+  });
+
+  elNotif.list.querySelectorAll("button[data-action='del']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.dataset.id;
+      if(!id) return;
+      if(!confirm("Excluir esta notificação?")) return;
+      await fb.db.collection("empresas").doc(state.empresaId).collection("notificacoes").doc(id).delete();
+      await notificacoesRefresh();
+      await dashboardRefresh();
     });
   });
 }
