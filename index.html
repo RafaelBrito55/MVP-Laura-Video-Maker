@@ -82,14 +82,11 @@
           <h2>Dashboard</h2>
           <div class="row gap">
             <label class="inline">
-              <span class="muted small">Mês (dd/mm/aa dentro)</span>
+              <span class="muted small">Data (dd/mm/aaaa)</span>
               <input
                 id="dash-mes"
-                type="text"
-                inputmode="numeric"
-                maxlength="10"
+                type="date"
                 autocomplete="off"
-                placeholder="01/01/26"
               />
             </label>
             <button class="btn" id="btn-dash-refresh">Atualizar</button>
@@ -229,32 +226,13 @@
       <div class="view hidden" id="view-financeiro">
         <div class="row spread">
           <h2>Financeiro</h2>
-          <div class="row gap">
-            <button class="btn" id="btn-open-receita">Nova receita</button>
-            <button class="btn" id="btn-open-despesa">Nova despesa</button>
-          </div>
+          <button class="btn primary" id="btn-lan-open">Novo lançamento</button>
         </div>
 
         <div class="row gap">
           <label class="inline">
-            <span class="muted small">Mês</span>
-            <input id="fin-mes" type="text" placeholder="01/2026" />
-          </label>
-          <label class="inline">
-            <span class="muted small">Tipo</span>
-            <select id="fin-tipo">
-              <option value="todos">Todos</option>
-              <option value="receita">Receitas</option>
-              <option value="despesa">Despesas</option>
-            </select>
-          </label>
-          <label class="inline">
-            <span class="muted small">Status</span>
-            <select id="fin-status">
-              <option value="todos">Todos</option>
-              <option value="pago">Pago</option>
-              <option value="previsto">Previsto</option>
-            </select>
+            <span class="muted small">Mês (MM/AAAA)</span>
+            <input id="fin-mes" type="text" maxlength="7" placeholder="01/2026" />
           </label>
           <button class="btn" id="btn-fin-refresh">Atualizar</button>
         </div>
@@ -264,7 +242,7 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Ações</th>
+                  <th>Data</th><th>Tipo</th><th>Categoria</th><th>Cliente</th><th>Projeto</th><th>Valor</th><th>Status</th><th>Ações</th>
                 </tr>
               </thead>
               <tbody id="fin-tbody"></tbody>
@@ -284,48 +262,33 @@
           <label class="inline">
             <span class="muted small">Filtro</span>
             <select id="notif-filtro">
-              <option value="abertas">Abertas</option>
               <option value="todas">Todas</option>
+              <option value="abertas">Abertas</option>
               <option value="concluidas">Concluídas</option>
             </select>
           </label>
           <button class="btn" id="btn-notif-refresh">Atualizar</button>
         </div>
 
-        <div class="card">
-          <div id="notif-list"></div>
-        </div>
+        <div id="notif-list"></div>
       </div>
 
     </section>
   </main>
 
-  <!-- MODAL: CRIAR EMPRESA (primeiro login) -->
-  <div class="modal hidden" id="modal-empresa">
-    <div class="modal-content">
-      <h2>Configurar empresa</h2>
-      <p class="muted">Como é o nome do negócio? (você pode mudar depois)</p>
-      <label>
-        <span>Nome</span>
-        <input id="empresa-nome-input" type="text" placeholder="Ex: Laura Vídeo Maker" />
-      </label>
-      <div class="row gap">
-        <button class="btn primary" id="btn-criar-empresa">Criar</button>
-        <button class="btn ghost" id="btn-empresa-sair">Sair</button>
-      </div>
-      <p class="small muted" id="empresa-msg"></p>
-    </div>
-  </div>
-
-  <!-- MODAL: CLIENTE -->
+  <!-- MODAL CLIENTE -->
   <div class="modal hidden" id="modal-cliente">
-    <div class="modal-content wide">
+    <div class="modal-content">
       <div class="row spread">
-        <h2 id="cliente-modal-title">Novo cliente/lead</h2>
+        <h3 id="cliente-modal-title">Novo cliente</h3>
         <button class="btn ghost" id="btn-close-cliente">Fechar</button>
       </div>
 
       <div class="form-grid-2">
+        <label>
+          <span>Nome</span>
+          <input id="cliente-nome" type="text" placeholder="Ex: Ana Silva" />
+        </label>
         <label>
           <span>Tipo</span>
           <select id="cliente-tipo">
@@ -335,7 +298,7 @@
         </label>
 
         <label>
-          <span>Status (funil)</span>
+          <span>Status</span>
           <select id="cliente-status">
             <option value="novo">Novo</option>
             <option value="orcamento_enviado">Orçamento enviado</option>
@@ -346,48 +309,13 @@
         </label>
 
         <label>
-          <span>Nome</span>
-          <input id="cliente-nome" type="text" placeholder="Nome do cliente" />
-        </label>
-
-        <label>
-          <span>Telefone</span>
-          <input id="cliente-telefone" type="text" placeholder="(65) 9xxxx-xxxx" />
-        </label>
-
-        <label>
-          <span>Instagram</span>
-          <input id="cliente-instagram" type="text" placeholder="@usuario" />
-        </label>
-
-        <label>
-          <span>E-mail</span>
-          <input id="cliente-email" type="email" placeholder="email@exemplo.com" />
-        </label>
-
-        <label>
-          <span>Origem</span>
-          <input id="cliente-origem" type="text" placeholder="Instagram / Indicação / Outro" />
-        </label>
-
-        <label>
-          <span>Tags (separar por vírgula)</span>
-          <input id="cliente-tags" type="text" placeholder="ex: casamento, indicação" />
-        </label>
-
-        <label>
-          <span>Próxima ação (título)</span>
-          <input id="cliente-prox-titulo" type="text" placeholder="Ex: Chamar no WhatsApp" />
-        </label>
-
-        <label>
-          <span>Próxima ação (data)</span>
-          <input id="cliente-prox-data" type="text" placeholder="dd/mm/aaaa" />
+          <span>Próxima ação (dd/mm/aaaa)</span>
+          <input id="cliente-proxacao" type="text" placeholder="31/01/2026" />
         </label>
 
         <label class="colspan-2">
           <span>Observações</span>
-          <textarea id="cliente-obs" rows="3" placeholder="Anotações rápidas..."></textarea>
+          <textarea id="cliente-notas" rows="3" placeholder="Detalhes do contato..."></textarea>
         </label>
       </div>
 
@@ -399,93 +327,86 @@
     </div>
   </div>
 
-  <!-- MODAL: PROJETO -->
+  <!-- MODAL PROJETO -->
   <div class="modal hidden" id="modal-projeto">
     <div class="modal-content wide">
       <div class="row spread">
-        <h2 id="projeto-modal-title">Novo projeto</h2>
-        <button class="btn ghost" id="btn-projeto-cancelar">Fechar</button>
+        <h3 id="projeto-modal-title">Novo projeto</h3>
+        <button class="btn ghost" id="btn-projeto-close">Fechar</button>
       </div>
-
-      <input type="hidden" id="projeto-id" />
 
       <div class="form-grid-2">
         <label>
           <span>Cliente</span>
           <select id="projeto-cliente"></select>
         </label>
-
         <label>
-          <span>Status</span>
-          <select id="projeto-status">
-            <option value="agendado">Agendado</option>
-            <option value="realizado">Realizado</option>
-            <option value="editando">Editando</option>
-            <option value="aprovacao">Aprovação</option>
-            <option value="entregue">Entregue</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
+          <span>Data do evento (dd/mm/aaaa)</span>
+          <input id="projeto-data" type="text" placeholder="31/01/2026" />
         </label>
 
         <label class="colspan-2">
           <span>Título</span>
-          <input id="projeto-titulo" type="text" placeholder="Ex: Aniversário 1 ano – Maria" />
+          <input id="projeto-titulo" type="text" placeholder="Ex: Casamento - Ana" />
         </label>
 
         <label>
           <span>Tipo</span>
           <select id="projeto-tipo">
-            <option value="parto">Parto</option>
-            <option value="aniversario">Aniversário</option>
             <option value="casamento">Casamento</option>
-            <option value="prewedding">Pré-wedding</option>
-            <option value="edicao">Edição</option>
+            <option value="aniversario">Aniversário</option>
+            <option value="ensaio">Ensaio</option>
+            <option value="corporativo">Corporativo</option>
             <option value="outro">Outro</option>
           </select>
         </label>
 
         <label>
-          <span>Data do evento</span>
-          <input
-            id="projeto-data"
-            type="text"
-            inputmode="numeric"
-            maxlength="8"
-            autocomplete="off"
-            placeholder="dd/mm/aa"
-          />
+          <span>Status</span>
+          <select id="projeto-status">
+            <option value="agendado">Agendado</option>
+            <option value="em_producao">Em produção</option>
+            <option value="entregue">Entregue</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
         </label>
 
         <label>
-          <span>Local</span>
-          <input id="projeto-local" type="text" placeholder="Cidade / Local" />
+          <span>Valor (R$)</span>
+          <input id="projeto-valor" type="text" placeholder="1.500,00" />
         </label>
 
         <label>
-          <span>Valor fechado (R$)</span>
-          <input id="projeto-valor" type="text" placeholder="Ex: 1500,00" />
+          <span>Forma de pagamento</span>
+          <select id="projeto-pagto">
+            <option value="pix">Pix</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="cartao">Cartão</option>
+            <option value="boleto">Boleto</option>
+            <option value="outro">Outro</option>
+          </select>
         </label>
 
         <label class="colspan-2">
           <span>Observações</span>
-          <textarea id="projeto-obs" rows="3" placeholder="Entregáveis, links, detalhes..."></textarea>
+          <textarea id="projeto-notas" rows="3" placeholder="Detalhes do projeto..."></textarea>
         </label>
       </div>
 
       <div class="row gap">
-        <button class="btn primary" id="btn-projeto-salvar">Salvar</button>
-        <button class="btn danger hidden" id="btn-del-projeto">Excluir</button>
+        <button class="btn primary" id="btn-projeto-save">Salvar</button>
+        <button class="btn danger hidden" id="btn-projeto-del">Excluir</button>
       </div>
       <p class="small muted" id="projeto-msg"></p>
     </div>
   </div>
 
-  <!-- MODAL: LANÇAMENTO -->
-  <div class="modal hidden" id="modal-lancamento">
+  <!-- MODAL LANÇAMENTO -->
+  <div class="modal hidden" id="modal-lan">
     <div class="modal-content wide">
       <div class="row spread">
-        <h2 id="lancamento-modal-title">Novo lançamento</h2>
-        <button class="btn ghost" id="btn-close-lancamento">Fechar</button>
+        <h3 id="lan-modal-title">Novo lançamento</h3>
+        <button class="btn ghost" id="btn-lan-close">Fechar</button>
       </div>
 
       <div class="form-grid-2">
@@ -498,82 +419,69 @@
         </label>
 
         <label>
-          <span>Status</span>
-          <select id="lan-status">
-            <option value="pago">Pago</option>
-            <option value="previsto">Previsto</option>
-          </select>
-        </label>
-
-        <label>
-          <span>Data</span>
-          <input id="lan-data" type="text" placeholder="dd/mm/aaaa" />
-        </label>
-
-        <label>
-          <span>Valor (R$)</span>
-          <input id="lan-valor" type="text" placeholder="Ex: 350,00" />
+          <span>Data (dd/mm/aaaa)</span>
+          <input id="lan-data" type="text" placeholder="31/01/2026" />
         </label>
 
         <label>
           <span>Categoria</span>
-          <input id="lan-categoria" type="text" placeholder="Ex: Serviço / Combustível / Assinatura" />
+          <input id="lan-categoria" type="text" placeholder="Ex: Adiantamento / Combustível / etc" />
         </label>
 
         <label>
-          <span>Forma de pagamento</span>
-          <select id="lan-forma">
-            <option value="pix">PIX</option>
-            <option value="credito">Crédito</option>
-            <option value="debito">Débito</option>
-            <option value="dinheiro">Dinheiro</option>
-            <option value="transferencia">Transferência</option>
-            <option value="boleto">Boleto</option>
-            <option value="outro">Outro</option>
+          <span>Status</span>
+          <select id="lan-status">
+            <option value="pago">Pago</option>
+            <option value="aberto">Em aberto</option>
           </select>
         </label>
 
-        <label class="colspan-2">
-          <span>Descrição</span>
-          <input id="lan-desc" type="text" placeholder="Ex: Sinal do casamento / Adobe mensal / Gasolina" />
-        </label>
-
         <label>
-          <span>Vincular cliente (opcional)</span>
+          <span>Cliente (opcional)</span>
           <select id="lan-cliente"></select>
         </label>
 
         <label>
-          <span>Vincular projeto (opcional)</span>
+          <span>Projeto (opcional)</span>
           <select id="lan-projeto"></select>
+        </label>
+
+        <label class="colspan-2">
+          <span>Descrição</span>
+          <input id="lan-desc" type="text" placeholder="Ex: Entrada de sinal / Compra de equipamento..." />
+        </label>
+
+        <label>
+          <span>Valor (R$)</span>
+          <input id="lan-valor" type="text" placeholder="1.500,00" />
         </label>
       </div>
 
       <div class="row gap">
-        <button class="btn primary" id="btn-save-lancamento">Salvar</button>
-        <button class="btn danger hidden" id="btn-del-lancamento">Excluir</button>
+        <button class="btn primary" id="btn-lan-save">Salvar</button>
+        <button class="btn danger hidden" id="btn-lan-del">Excluir</button>
       </div>
-      <p class="small muted" id="lancamento-msg"></p>
+      <p class="small muted" id="lan-msg"></p>
     </div>
   </div>
 
-  <!-- MODAL: NOTIFICAÇÃO -->
+  <!-- MODAL NOTIFICAÇÃO -->
   <div class="modal hidden" id="modal-notif">
-    <div class="modal-content wide">
+    <div class="modal-content">
       <div class="row spread">
-        <h2 id="notif-modal-title">Nova notificação</h2>
+        <h3 id="notif-modal-title">Nova notificação</h3>
         <button class="btn ghost" id="btn-close-notif">Fechar</button>
       </div>
 
       <div class="form-grid-2">
         <label class="colspan-2">
           <span>Título</span>
-          <input id="notif-titulo" type="text" placeholder="Ex: Cobrar parcela / Chamar lead no WhatsApp" />
+          <input id="notif-titulo" type="text" placeholder="Ex: Cobrar cliente X" />
         </label>
 
         <label>
-          <span>Vencimento</span>
-          <input id="notif-data" type="text" placeholder="dd/mm/aaaa" />
+          <span>Data (dd/mm/aaaa)</span>
+          <input id="notif-data" type="text" placeholder="31/01/2026" />
         </label>
 
         <label>
