@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(empresaId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/empresas/$(empresaId)/usuarios/$(request.auth.uid));
+    }
+
+    function isOwner(empresaId) {
+      return isMember(empresaId)
+        && get(/databases/$(database)/documents/empresas/$(empresaId)/usuarios/$(request.auth.uid)).data.role == "owner";
+    }
+
+    // Mapeamento do usuário -> empresa
+    match /usuarios/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Empresas
+    match /empresas/{empresaId} {
+      allow read: if isMember(empresaId);
+      allow create: if isSignedIn(); // criação inicial
+      allow update, delete: if isOwner(empresaId);
+
+      // Subcoleções comuns
+      match /{sub=**} {
+        allow read, write: if isMember(empresaId);
+      }
+    }
+  }
+}
