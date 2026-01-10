@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Laura — Gestão (MVP)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Firebase SDKs (Compat via CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">LM</div>
+      <div>
+        <div class="brand-title">Laura — Gestão</div>
+        <div class="brand-subtitle" id="empresa-nome">—</div>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="btn ghost" id="btn-logout" title="Sair">Sair</button>
+    </div>
+  </header>
+
+  <!-- LOGIN -->
+  <main class="center" id="view-auth">
+    <div class="card auth-card">
+      <h1>Entrar</h1>
+      <p class="muted">Acesse sua conta para gerenciar clientes, projetos e financeiro.</p>
+
+      <div class="form-grid">
+        <label>
+          <span>E-mail</span>
+          <input id="auth-email" type="email" placeholder="seu@email.com" autocomplete="email" />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </label>
+      </div>
+
+      <div class="row gap">
+        <button class="btn primary" id="btn-login">Entrar</button>
+        <button class="btn" id="btn-register">Criar conta</button>
+      </div>
+
+      <div class="divider"></div>
+      <details>
+        <summary>Primeira vez aqui? (passo a passo)</summary>
+        <ol class="small">
+          <li>Crie um projeto no Firebase.</li>
+          <li>Habilite <b>Authentication (E-mail/Senha)</b> e <b>Firestore</b>.</li>
+          <li>Abra <b>js/firebase.js</b> e cole as credenciais do seu projeto.</li>
+          <li>Hospede isso no GitHub Pages / Netlify / Vercel (ou Live Server).</li>
+        </ol>
+      </details>
+      <p class="small muted" id="auth-msg"></p>
+    </div>
+  </main>
+
+  <!-- APP -->
+  <main class="app" id="view-app">
+    <aside class="sidebar">
+      <button class="nav-item active" data-view="dashboard">Dashboard</button>
+      <button class="nav-item" data-view="clientes">Clientes & Leads</button>
+      <button class="nav-item" data-view="projetos">Projetos</button>
+      <button class="nav-item" data-view="financeiro">Financeiro</button>
+      <button class="nav-item" data-view="notificacoes">Notificações</button>
+    </aside>
+
+    <section class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view" id="view-dashboard">
+        <div class="row spread">
+          <h2>Dashboard</h2>
+          <div class="row gap">
+            <label class="inline">
+              <span class="muted small">Mês (dd/mm/aa dentro)</span>
+              <input
+                id="dash-mes"
+                type="text"
+                inputmode="numeric"
+                maxlength="10"
+                autocomplete="off"
+                placeholder="01/01/26"
+              />
+            </label>
+            <button class="btn" id="btn-dash-refresh">Atualizar</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-label">Faturamento (mês)</div>
+            <div class="kpi-value" id="kpi-fat">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-fat-comp">—</div>
+          </div>
+
+          <div class="kpi">
+            <div class="kpi-label">Despesas (mês)</div>
+            <div class="kpi-value" id="kpi-desp">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-desp-comp">—</div>
+          </div>
+
+          <div class="kpi">
+            <div class="kpi-label">Resultado (mês)</div>
+            <div class="kpi-value" id="kpi-res">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-margem">Margem: 0%</div>
+          </div>
+
+          <div class="kpi">
+            <div class="kpi-label">A receber</div>
+            <div class="kpi-value" id="kpi-areceber">R$ 0,00</div>
+            <div class="kpi-sub">Receitas previstas</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="row spread">
+              <h3>Próximos Projetos</h3>
+              <span class="muted small">próximos 30 dias</span>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Data</th><th>Título</th><th>Status</th><th>Cliente</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-projetos-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row spread">
+              <h3>Notificações em destaque</h3>
+              <span class="muted small">vencidas / hoje</span>
+            </div>
+            <div id="dash-notifs"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENTES -->
+      <div class="view hidden" id="view-clientes">
+        <div class="row spread">
+          <h2>Clientes & Leads</h2>
+          <button class="btn primary" id="btn-open-cliente">Novo cliente/lead</button>
+        </div>
+
+        <div class="row gap">
+          <label class="inline">
+            <span class="muted small">Filtro</span>
+            <select id="clientes-filtro">
+              <option value="todos">Todos</option>
+              <option value="lead">Leads</option>
+              <option value="cliente">Clientes</option>
+              <option value="novo">Novo</option>
+              <option value="orcamento_enviado">Orçamento enviado</option>
+              <option value="negociacao">Negociação</option>
+              <option value="fechado">Fechado</option>
+              <option value="perdido">Perdido</option>
+            </select>
+          </label>
+          <input id="clientes-busca" type="text" placeholder="Buscar por nome..." />
+          <button class="btn" id="btn-clientes-refresh">Atualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th><th>Tipo</th><th>Status</th><th>Próxima ação</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="clientes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROJETOS -->
+      <div class="view hidden" id="view-projetos">
+        <div class="row spread">
+          <h2>Projetos</h2>
+          <button class="btn primary" id="btn-projeto-open">Novo projeto</button>
+        </div>
+
+        <div class="row gap">
+          <label class="inline">
+            <span class="muted small">Mês (dd/mm/aa dentro)</span>
+            <input
+              id="projetos-mes"
+              type="text"
+              inputmode="numeric"
+              maxlength="10"
+              autocomplete="off"
+              placeholder="01/01/26"
+            />
+          </label>
+          <button class="btn" id="btn-projetos-refresh">Atualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Data</th><th>Título</th><th>Tipo</th><th>Status</th><th>Cliente</th><th>Valor</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="projetos-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINANCEIRO -->
+      <div class="view hidden" id="view-financeiro">
+        <div class="row spread">
+          <h2>Financeiro</h2>
+          <div class="row gap">
+            <button class="btn" id="btn-open-receita">Nova receita</button>
+            <button class="btn" id="btn-open-despesa">Nova despesa</button>
+          </div>
+        </div>
+
+        <div class="row gap">
+          <label class="inline">
+            <span class="muted small">Mês</span>
+            <input id="fin-mes" type="text" placeholder="01/2026" />
+          </label>
+          <label class="inline">
+            <span class="muted small">Tipo</span>
+            <select id="fin-tipo">
+              <option value="todos">Todos</option>
+              <option value="receita">Receitas</option>
+              <option value="despesa">Despesas</option>
+            </select>
+          </label>
+          <label class="inline">
+            <span class="muted small">Status</span>
+            <select id="fin-status">
+              <option value="todos">Todos</option>
+              <option value="pago">Pago</option>
+              <option value="previsto">Previsto</option>
+            </select>
+          </label>
+          <button class="btn" id="btn-fin-refresh">Atualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="fin-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTIFICAÇÕES -->
+      <div class="view hidden" id="view-notificacoes">
+        <div class="row spread">
+          <h2>Notificações</h2>
+          <button class="btn primary" id="btn-open-notif">Nova notificação</button>
+        </div>
+
+        <div class="row gap">
+          <label class="inline">
+            <span class="muted small">Filtro</span>
+            <select id="notif-filtro">
+              <option value="abertas">Abertas</option>
+              <option value="todas">Todas</option>
+              <option value="concluidas">Concluídas</option>
+            </select>
+          </label>
+          <button class="btn" id="btn-notif-refresh">Atualizar</button>
+        </div>
+
+        <div class="card">
+          <div id="notif-list"></div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODAL: CRIAR EMPRESA (primeiro login) -->
+  <div class="modal hidden" id="modal-empresa">
+    <div class="modal-content">
+      <h2>Configurar empresa</h2>
+      <p class="muted">Como é o nome do negócio? (você pode mudar depois)</p>
+      <label>
+        <span>Nome</span>
+        <input id="empresa-nome-input" type="text" placeholder="Ex: Laura Vídeo Maker" />
+      </label>
+      <div class="row gap">
+        <button class="btn primary" id="btn-criar-empresa">Criar</button>
+        <button class="btn ghost" id="btn-empresa-sair">Sair</button>
+      </div>
+      <p class="small muted" id="empresa-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL: CLIENTE -->
+  <div class="modal hidden" id="modal-cliente">
+    <div class="modal-content wide">
+      <div class="row spread">
+        <h2 id="cliente-modal-title">Novo cliente/lead</h2>
+        <button class="btn ghost" id="btn-close-cliente">Fechar</button>
+      </div>
+
+      <div class="form-grid-2">
+        <label>
+          <span>Tipo</span>
+          <select id="cliente-tipo">
+            <option value="lead">Lead</option>
+            <option value="cliente">Cliente</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Status (funil)</span>
+          <select id="cliente-status">
+            <option value="novo">Novo</option>
+            <option value="orcamento_enviado">Orçamento enviado</option>
+            <option value="negociacao">Negociação</option>
+            <option value="fechado">Fechado</option>
+            <option value="perdido">Perdido</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Nome</span>
+          <input id="cliente-nome" type="text" placeholder="Nome do cliente" />
+        </label>
+
+        <label>
+          <span>Telefone</span>
+          <input id="cliente-telefone" type="text" placeholder="(65) 9xxxx-xxxx" />
+        </label>
+
+        <label>
+          <span>Instagram</span>
+          <input id="cliente-instagram" type="text" placeholder="@usuario" />
+        </label>
+
+        <label>
+          <span>E-mail</span>
+          <input id="cliente-email" type="email" placeholder="email@exemplo.com" />
+        </label>
+
+        <label>
+          <span>Origem</span>
+          <input id="cliente-origem" type="text" placeholder="Instagram / Indicação / Outro" />
+        </label>
+
+        <label>
+          <span>Tags (separar por vírgula)</span>
+          <input id="cliente-tags" type="text" placeholder="ex: casamento, indicação" />
+        </label>
+
+        <label>
+          <span>Próxima ação (título)</span>
+          <input id="cliente-prox-titulo" type="text" placeholder="Ex: Chamar no WhatsApp" />
+        </label>
+
+        <label>
+          <span>Próxima ação (data)</span>
+          <input id="cliente-prox-data" type="text" placeholder="dd/mm/aaaa" />
+        </label>
+
+        <label class="colspan-2">
+          <span>Observações</span>
+          <textarea id="cliente-obs" rows="3" placeholder="Anotações rápidas..."></textarea>
+        </label>
+      </div>
+
+      <div class="row gap">
+        <button class="btn primary" id="btn-save-cliente">Salvar</button>
+        <button class="btn danger hidden" id="btn-del-cliente">Excluir</button>
+      </div>
+      <p class="small muted" id="cliente-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL: PROJETO -->
+  <div class="modal hidden" id="modal-projeto">
+    <div class="modal-content wide">
+      <div class="row spread">
+        <h2 id="projeto-modal-title">Novo projeto</h2>
+        <button class="btn ghost" id="btn-projeto-cancelar">Fechar</button>
+      </div>
+
+      <input type="hidden" id="projeto-id" />
+
+      <div class="form-grid-2">
+        <label>
+          <span>Cliente</span>
+          <select id="projeto-cliente"></select>
+        </label>
+
+        <label>
+          <span>Status</span>
+          <select id="projeto-status">
+            <option value="agendado">Agendado</option>
+            <option value="realizado">Realizado</option>
+            <option value="editando">Editando</option>
+            <option value="aprovacao">Aprovação</option>
+            <option value="entregue">Entregue</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </label>
+
+        <label class="colspan-2">
+          <span>Título</span>
+          <input id="projeto-titulo" type="text" placeholder="Ex: Aniversário 1 ano – Maria" />
+        </label>
+
+        <label>
+          <span>Tipo</span>
+          <select id="projeto-tipo">
+            <option value="parto">Parto</option>
+            <option value="aniversario">Aniversário</option>
+            <option value="casamento">Casamento</option>
+            <option value="prewedding">Pré-wedding</option>
+            <option value="edicao">Edição</option>
+            <option value="outro">Outro</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Data do evento</span>
+          <input
+            id="projeto-data"
+            type="text"
+            inputmode="numeric"
+            maxlength="8"
+            autocomplete="off"
+            placeholder="dd/mm/aa"
+          />
+        </label>
+
+        <label>
+          <span>Local</span>
+          <input id="projeto-local" type="text" placeholder="Cidade / Local" />
+        </label>
+
+        <label>
+          <span>Valor fechado (R$)</span>
+          <input id="projeto-valor" type="text" placeholder="Ex: 1500,00" />
+        </label>
+
+        <label class="colspan-2">
+          <span>Observações</span>
+          <textarea id="projeto-obs" rows="3" placeholder="Entregáveis, links, detalhes..."></textarea>
+        </label>
+      </div>
+
+      <div class="row gap">
+        <button class="btn primary" id="btn-projeto-salvar">Salvar</button>
+        <button class="btn danger hidden" id="btn-del-projeto">Excluir</button>
+      </div>
+      <p class="small muted" id="projeto-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL: LANÇAMENTO -->
+  <div class="modal hidden" id="modal-lancamento">
+    <div class="modal-content wide">
+      <div class="row spread">
+        <h2 id="lancamento-modal-title">Novo lançamento</h2>
+        <button class="btn ghost" id="btn-close-lancamento">Fechar</button>
+      </div>
+
+      <div class="form-grid-2">
+        <label>
+          <span>Tipo</span>
+          <select id="lan-tipo">
+            <option value="receita">Receita</option>
+            <option value="despesa">Despesa</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Status</span>
+          <select id="lan-status">
+            <option value="pago">Pago</option>
+            <option value="previsto">Previsto</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Data</span>
+          <input id="lan-data" type="text" placeholder="dd/mm/aaaa" />
+        </label>
+
+        <label>
+          <span>Valor (R$)</span>
+          <input id="lan-valor" type="text" placeholder="Ex: 350,00" />
+        </label>
+
+        <label>
+          <span>Categoria</span>
+          <input id="lan-categoria" type="text" placeholder="Ex: Serviço / Combustível / Assinatura" />
+        </label>
+
+        <label>
+          <span>Forma de pagamento</span>
+          <select id="lan-forma">
+            <option value="pix">PIX</option>
+            <option value="credito">Crédito</option>
+            <option value="debito">Débito</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="transferencia">Transferência</option>
+            <option value="boleto">Boleto</option>
+            <option value="outro">Outro</option>
+          </select>
+        </label>
+
+        <label class="colspan-2">
+          <span>Descrição</span>
+          <input id="lan-desc" type="text" placeholder="Ex: Sinal do casamento / Adobe mensal / Gasolina" />
+        </label>
+
+        <label>
+          <span>Vincular cliente (opcional)</span>
+          <select id="lan-cliente"></select>
+        </label>
+
+        <label>
+          <span>Vincular projeto (opcional)</span>
+          <select id="lan-projeto"></select>
+        </label>
+      </div>
+
+      <div class="row gap">
+        <button class="btn primary" id="btn-save-lancamento">Salvar</button>
+        <button class="btn danger hidden" id="btn-del-lancamento">Excluir</button>
+      </div>
+      <p class="small muted" id="lancamento-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL: NOTIFICAÇÃO -->
+  <div class="modal hidden" id="modal-notif">
+    <div class="modal-content wide">
+      <div class="row spread">
+        <h2 id="notif-modal-title">Nova notificação</h2>
+        <button class="btn ghost" id="btn-close-notif">Fechar</button>
+      </div>
+
+      <div class="form-grid-2">
+        <label class="colspan-2">
+          <span>Título</span>
+          <input id="notif-titulo" type="text" placeholder="Ex: Cobrar parcela / Chamar lead no WhatsApp" />
+        </label>
+
+        <label>
+          <span>Vencimento</span>
+          <input id="notif-data" type="text" placeholder="dd/mm/aaaa" />
+        </label>
+
+        <label>
+          <span>Prioridade</span>
+          <select id="notif-prioridade">
+            <option value="baixa">Baixa</option>
+            <option value="media" selected>Média</option>
+            <option value="alta">Alta</option>
+          </select>
+        </label>
+
+        <label class="colspan-2">
+          <span>Descrição</span>
+          <textarea id="notif-desc" rows="3" placeholder="Detalhes do lembrete..."></textarea>
+        </label>
+      </div>
+
+      <div class="row gap">
+        <button class="btn primary" id="btn-save-notif">Salvar</button>
+        <button class="btn danger hidden" id="btn-del-notif">Excluir</button>
+      </div>
+      <p class="small muted" id="notif-msg"></p>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="js/firebase.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+
+  <script src="js/auth.js"></script>
+  <script src="js/tenant.js"></script>
+
+  <script src="js/dashboard.js"></script>
+  <script src="js/clientes.js"></script>
+  <script src="js/projetos.js"></script>
+  <script src="js/financeiro.js"></script>
+  <script src="js/notificacoes.js"></script>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
